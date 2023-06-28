@@ -1,22 +1,38 @@
+import com.browserup.bup.BrowserUpProxy;
+import com.browserup.bup.proxy.CaptureType;
+import com.browserup.harreader.model.HarEntry;
 import com.qaprosoft.carina.core.foundation.AbstractTest;
+import com.zebrunner.carina.proxy.browserup.ProxyPool;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
-public class SearchTest extends AbstractTest {
+public class ProxyTest extends AbstractTest {
+    private static final Logger LOGGER = LogManager.getLogger(ProxyTest.class);
+
     @Test
-    public void testSearchProducts() {
-        String searchWord = "Shirt";
+    public void proxyTest() {
         HomePage homePage = new HomePage(getDriver());
         homePage.open();
-        homePage.typeProductName(searchWord);
-        ProductListingPage productListingPage = homePage.clickSearchButton();
+        BrowserUpProxy proxy = ProxyPool.getProxy();
+        proxy.enableHarCaptureTypes(CaptureType.REQUEST_CONTENT,CaptureType.RESPONSE_CONTENT);
+        List<String> requestUrls = proxy.getHar().getLog().getEntries()
+                .stream()
+                .map((entry) -> {
+                    String url = entry.getRequest().getUrl();
+                    LOGGER.info(url);
+                    return url;
+                })
+                .collect(Collectors.toList());
 
-        List<String> productNames = productListingPage.getProductNames();
-
-        for (String productName : productNames) {
-            Assert.assertTrue(productName.toLowerCase().contains(searchWord.toLowerCase()), "Item should contain word dress but it was " + productName);
-        }
+        Assert.assertTrue(
+                requestUrls.stream().anyMatch((url) -> url.contains("https://rest.happierleads.com")),
+                "Request is not sent to https://rest.happierleads.com"
+        );
     }
 }
